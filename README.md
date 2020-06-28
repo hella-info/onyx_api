@@ -31,9 +31,9 @@ To use the API, client applications need the *fingerprint* of the ONYX.CENTER an
    
     This temporary code is only valid for 15 minutes and can be exchanged for a permanent API access token by sending it to the API endpoint at https://api.hella.link/authorize
    
-    The server response with status `200 - OK` and returns the *fingerprint* and *access token* if the temporary code is valid. If it is not, the server responds with status `401 - Unauthorized`.
+    The server responds with status `200 - OK` and returns the *fingerprint* and *access token* if the temporary code is valid. If it is not, the server responds with status `401 - Unauthorized`.
     
-    **Note:** You must use the API token to make at least one API request to make it permanent. Otherwise the token will be deleted after 15 minutes.
+    **Note:** You must use the returned API token to make at least one API request to make it permanent. Otherwise the token will be deleted after 15 minutes.
 
 4. Once you have the *fingerprint* and API *access token* you can use them to call the API endpoints of your ONYX.CENTER.
 
@@ -128,7 +128,7 @@ The available actions for a device are defined as a simple list in the device de
 
 ### <a name="commands_and_priorities"></a>Device Commands and Command Priorities
 
-You can only affect the state of a device via the API by sending a control command. A commands can execute *one* action *or* change multiple property values at once. 
+You can only affect the state of a device via the API by sending a control command. A command can execute *one* action *or* change multiple property values at once. 
 Each command has a priority, a start date (`valid_from`) and an expiration date (`best_before`). The `valid_from` date determines when a command becomes valid and can be used to schedule commands in the future. The `best_before` time defines when a command expires and should be deactivated for a device.
 
 If a command is valid for a longer period or if packets are lost when communicating with a device, the commands may be sent multiple times by your ONYX.CENTER.
@@ -177,7 +177,7 @@ As mentioned above, all API commands have the priority "interactive" and are han
 
 #### Notes
 
-Your ONYX.CENTER might use be located in a different timezone than your API client device or, if no NTP server can be contacted, the clock of your ONYX.CENTER might be out of sync. This endpoint gives you access to the system clock data to correct the start and end times for any commands you send and to offset the property timestamps of devices if needed.
+Your ONYX.CENTER might be located in a different timezone than your API client device or, if no NTP server can be contacted, the clock of your ONYX.CENTER might be out of sync. This endpoint gives you access to the system clock data to correct the start and end times for any commands you send and to offset the property timestamps of devices if needed.
 
 #### Example
 
@@ -204,7 +204,7 @@ Your ONYX.CENTER might use be located in a different timezone than your API clie
     </tr>
     <tr>
         <th align="left">Description</th>
-        <td><p>Returns a list of all devices along with their name and device type</p></td>
+        <td><p>Returns a list of all devices along with their names and device types</p></td>
     </tr>
 </table>
 
@@ -242,7 +242,7 @@ Your ONYX.CENTER might use be located in a different timezone than your API clie
     </tr>
     <tr>
         <th align="left">Description</th>
-        <td><p>Returns a list of all groups along with their name and the devices in each group</p></td>
+        <td><p>Returns a list of all groups along with their names and the devices in each group</p></td>
     </tr>
 </table>
 
