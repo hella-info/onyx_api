@@ -12,7 +12,7 @@ ONYX provides a public API which can be used to query the state of the individua
 
 ## Examples
 
-The examples in this document use the `curl` utility to call the API and the `json_pp` utility to format the output for better readability. You can find more examples for different programming languages in this Git repository.
+The examples in this document use the `curl` utility to call the API and the `json_pp` utility to format the returned output for better readability. All examples have been tested using the `bash` shell on Linux and macOS with `curl` version 7.x. If you are using a different shell or operating system you may need to adjust the syntax accordingly.
 
 # API Server
 
