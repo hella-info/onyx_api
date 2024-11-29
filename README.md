@@ -38,6 +38,8 @@
   - [Motor Controllers](#motor-controllers)
   - [Lights](#lights)
   - [Weather Stations](#weather-stations)
+  - [Sun Sensors](#sun-sensors)
+  - [Temperature Sensors](#temperature-sensors)
 
 # Introduction 
 
@@ -50,6 +52,9 @@ The system consists of the following main components:
 - [ONYX.MOTOR](https://www.hella.info/produkte/onyx-r-silent-motor) is a specialized motor for rollershutters with ONYX built-in
 - [ONYX.WEATHER](https://www.hella.info/de/produkte/onyx-weather) provides environmental data such as wind speed, temperature and brightness
 - [ONYX.CLICK](https://www.hella.info/de/produkte/onyx-click) is a tiny handheld remote control for the system
+- [ONYX.TAG wind](https://www.hella.info/de/produkte/onyx-tag-wind) is a small sensor to measure the vibration of awnings due to wind
+- [ONYX.TAG sun](https://www.hella.info/de/produkte/onyx-tag-sun) is a small sensor to measure the sun brightness
+- [ONYX.TAG temperature](https://www.hella.info/de/produkte/onyx-tag-temperature) is a small sensor to measure temperature and humidity
 
 ONYX provides a public API which can be used to query the state of the individual devices and to control them by sending control commands. This document describes the API and how to use it.
 
@@ -795,13 +800,15 @@ Read the section on the [Cancel Device Command endpoint](#cancel-device-command)
     </tr>
     <tr>
         <th align="left">Description</th>
-        <td><p>Streams changes to the device states in real time using <a href="https://www.w3.org/TR/eventsource/">Server-Sent Events</a> and <a href="https://datatracker.ietf.org/doc/html/rfc7386">JSON Merge Patch</a></p></td>
+        <td><p>Streams changes to the device states in real time using <a href="https://html.spec.whatwg.org/multipage/server-sent-events.html">Server-Sent Events</a> and <a href="https://datatracker.ietf.org/doc/html/rfc7386">JSON Merge Patch</a></p></td>
     </tr>
 </table>
 
 #### Notes
 
-The `/events` endpoint allows API clients to observe the state of ONYX devices and groups in real time. To use this endpoint you keep the HTTPS connection to ONYX.CENTER open and continually read events from the response body as they are generated. There are two types of events that are emitted:
+The `/events` endpoint allows API clients to observe the state of ONYX devices and groups in real time. To use this endpoint you keep the HTTPS connection to ONYX.CENTER open and continually read events from the response body as they are generated. There are three types of events that are emitted:
+
+- `pulse`: This event is used as a heartbeat. It is send periodically and contains as data the current system time in unix timestamp format.
 
 - `snapshot`: The initial snapshot is immediately emitted when you open the connection to the `/events` endpoint and contains the current state of all devices as available through the [Device Details](#device-details) API endpoint.
 
@@ -814,8 +821,14 @@ The `/events` endpoint allows API clients to observe the state of ONYX devices a
 event: snapshot
 data: {"devices":{"53ab8f34-e3ea-449f-851f-c1a821bbd9aa":{"name":"LED 04-ff-00-28","type":"dimmable_light","actions":["light_off","light_on","stop","wink"],"properties":{"actual_brightness":{"type":"numeric","minimum":0,"maximum":65535,"value":0,"readonly":true},"dim_duration":{"type":"numeric","minimum":20,"maximum":3600000,"value":5000,"readonly":false},"target_brightness":{"type":"numeric","minimum":0,"maximum":65535,"value":0,"readonly":false}}},"667e3604-001b-4416-841f-647857c4fdb1":{"name":"NODE 00-00-02-f2","type":"pergola_slat_roof","actions":["close","open","stop","wink"],"properties":{"actual_angle":{"type":"numeric","minimum":0,"maximum":360,"value":0,"readonly":true},"actual_position":{"type":"numeric","minimum":0,"maximum":100,"value":0,"readonly":true},"system_state":{"type":"enumeration","value":"ok","values":["collision","collision_not_calibrated","not_calibrated","ok"],"readonly":true},"target_angle":{"type":"numeric","minimum":0,"maximum":360,"value":0,"readonly":false},"target_position":{"type":"numeric","minimum":0,"maximum":100,"value":0,"readonly":false}}},"ae8a1d92-97c0-4ad0-9810-69190e14585e":{"name":"CONNECTOR 02-00-09-2b","type":"raffstore_90","actions":["close","open","stop","wink"],"properties":{"actual_angle":{"type":"numeric","minimum":0,"maximum":360,"value":89,"readonly":true},"actual_position":{"type":"numeric","minimum":0,"maximum":100,"value":11,"readonly":true},"system_state":{"type":"enumeration","value":"ok","values":["collision","collision_not_calibrated","not_calibrated","ok"],"readonly":true},"target_angle":{"type":"numeric","minimum":0,"maximum":360,"value":89,"readonly":false},"target_position":{"type":"numeric","minimum":0,"maximum":100,"value":11,"readonly":false}}}},"groups":{}}
 
+event: pulse
+data: 1730803627
+
 event: patch
 data: {"devices":{"ae8a1d92-97c0-4ad0-9810-69190e14585e":{"properties":{"actual_angle":{"animation":{"current_value":89,"keyframes":[{"duration":-1,"interpolation":"linear","value":0}],"start":1627048004.7762835}},"actual_position":{"animation":{"current_value":11,"keyframes":[{"duration":5,"interpolation":"linear","value":100}],"start":1627048004.7762835}},"target_angle":{"value":0},"target_position":{"value":100}}}}}
+
+event: pulse
+data: 1730803657
 
 event: patch
 data: {"devices":{"53ab8f34-e3ea-449f-851f-c1a821bbd9aa":{"properties":{"actual_brightness":{"animation":{"current_value":0,"keyframes":[{"duration":6,"interpolation":"linear","value":65535}],"start":1627048014.1954331}},"dim_duration":{"value":6000},"target_brightness":{"value":65535}}}}}
@@ -826,7 +839,7 @@ data: {"groups":{"5705b5d9-84dd-4541-b535-bf4391ee7140":{"devices":["ae8a1d92-97
 
 # Device Properties and Actions
 
-ONYX currently supports three basic kinds of devices:
+ONYX currently supports five basic kinds of devices:
 
 - Motor controllers
 
@@ -839,6 +852,15 @@ ONYX currently supports three basic kinds of devices:
 - Weather stations
 
   ONYX.WEATHER provides measurement data for brightness, wind speed, temperature, air pressure and humidity. Depending on the hardware revision, some measurements may be unavailable.
+
+- Sun sensors
+
+  ONYX.TAG sun supplies brightness measurement data.
+
+- Temperature sensors
+
+  ONYX.TAG temperature is able to measure the temperature and humidity.
+
 
 Depending on the device type and its settings, different properties and actions can be queried and controlled via the API. This section describes the supported properties and actions for each device type. API access to properties not in this document may be restricted in the future and should be avoided.
 
@@ -1003,6 +1025,12 @@ ONYX currently supports two types of lights via the same properties and actions:
     <td><p>The maximum wind speed measured in the last 15 minutes in mm/s. Divide by 1000 to convert to m/s.</p></td>
 </tr>
 <tr>
+    <td>sun_brightness</td>
+    <td>numeric</td>
+    <td>0 - 150000 lx</td>
+    <td><p>The brightness value of the last measurement</p></td>
+</tr>
+<tr>
     <td>sun_brightness_peak</td>
     <td>numeric</td>
     <td>0 - 150000 lx</td>
@@ -1021,16 +1049,16 @@ ONYX currently supports two types of lights via the same properties and actions:
     <td><p>The local absolute air pressure in hPa * 100. Note that this is absolute air pressure and varies depending on the altitude the weather station is located at.</p></td>
 </tr>
 <tr>
-    <td>humidity</td>
-    <td>numeric</td>
-    <td>0 - 100 in %</td>
-    <td><p>The relative humidity of the air around the weather station.</p></td>
-</tr>
-<tr>
     <td>temperature</td>
     <td>numeric</td>
     <td>-400 - 1500 in °C * 10</td>
     <td><p>The temperature of the weather station. Divide the value by 10 to get °C.</p></td>
+</tr>
+<tr>
+    <td>humidity</td>
+    <td>numeric</td>
+    <td>0 - 100 in %</td>
+    <td><p>The relative humidity of the air around the weather station.</p></td>
 </tr>
 </table>
 
@@ -1047,4 +1075,62 @@ ONYX currently supports two types of lights via the same properties and actions:
 </tr>
 </table>
 
-Copyright 2021 HELLA Sonnen- und Wetterschutztechnik GmbH
+
+## Sun Sensors
+
+### Properties
+
+<table>
+<tr>
+    <th>Name</th>
+    <th>Type</th>
+    <th>Values</th>
+    <th>Description</th>
+</tr>
+<tr>
+    <td>sun_brightness</td>
+    <td>numeric</td>
+    <td>0 - 150000 lx</td>
+    <td><p>The brightness value of the last measurement.</p></td>
+</tr>
+<tr>
+    <td>sun_brightness_peak</td>
+    <td>numeric</td>
+    <td>0 - 150000 lx</td>
+    <td><p>The maximum brightness measured in the last 15 minutes in Lux.</p></td>
+</tr>
+<tr>
+    <td>sun_brightness_sink</td>
+    <td>numeric</td>
+    <td>0 - 150000 lx</td>
+    <td><p>The minimum brightness measured in the last 15 minutes in Lux.</p></td>
+</tr>
+</table>
+
+## Temperature Sensors
+
+### Properties
+
+<table>
+<tr>
+    <th>Name</th>
+    <th>Type</th>
+    <th>Values</th>
+    <th>Description</th>
+</tr>
+<tr>
+    <td>temperature</td>
+    <td>numeric</td>
+    <td>-400 - 1500 in °C * 10</td>
+    <td><p>The temperature of the sensor. Divide the value by 10 to get °C.</p></td>
+</tr>
+<tr>
+    <td>humidity</td>
+    <td>numeric</td>
+    <td>0 - 100 in %</td>
+    <td><p>The relative humidity of the air around the sensor.</p></td>
+</tr>
+</table>
+
+
+Copyright 2024 HELLA Sonnen- und Wetterschutztechnik GmbH
