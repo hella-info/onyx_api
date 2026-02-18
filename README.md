@@ -27,13 +27,16 @@
     - [Clock and Timezone Information](#clock-and-timezone-information)
     - [List all devices](#list-all-devices)
     - [List all groups](#list-all-groups)
-      - [Device Details](#device-details)
-      - [Group Details](#group-details)
+    - [Device Details](#device-details)
+    - [Group Details](#group-details)
     - [Device Command](#device-command)
     - [Cancel Device Command](#cancel-device-command)
     - [Send Group Command](#send-group-command)
     - [Delete Group Command](#delete-group-command)
     - [Event Stream](#event-stream)
+    - [Device Property Time Series](#device-property-time-series)
+    - [Device Online Time Series](#device-online-time-series)
+    - [Time Series Statistics](#time-series-statistics)
 - [Device Properties and Actions](#device-properties-and-actions-1)
   - [Motor Controllers](#motor-controllers)
   - [Lights](#lights)
@@ -41,7 +44,7 @@
   - [Sun Sensors](#sun-sensors)
   - [Temperature Sensors](#temperature-sensors)
 
-# Introduction 
+# Introduction
 
 ONYX is a specialized home automation system developed by HELLA Sonnen- und Wetterschutztechnik GmbH. It controls an array of shading products such as awnings, venetian blinds, raffstores and pergolas.
 
@@ -60,7 +63,7 @@ ONYX provides a public API which can be used to query the state of the individua
 
 ## Examples
 
-The examples in this document use the `curl` utility to call the API and the `json_pp` utility to format the returned output for better readability. All examples have been tested using the `bash` shell on Linux and macOS with `curl` version 7.x. If you are using a different shell or operating system you may need to adjust the syntax accordingly.
+The examples in this document use the `curl` utility to call the API and the `jq` utility to format the returned output for better readability. All examples have been tested using the `bash` shell on Linux and macOS with `curl` version 8.x or newer. If you are using a different shell or operating system you may need to adjust the syntax accordingly.
 
 For simplicity the examples all use the [HELLA API server](#hella-api-server). If you are using [local API access](#local-access), you need to replace the base URL of each request with the [mDNS Hostname](#address-resolution-using-mdns) of your ONYX.CENTER in your local network.
 
@@ -72,7 +75,7 @@ To access the latest version of the API, make sure to install the most recent up
 
 ## HELLA API Server
 
-If your ONYX.CENTER is connected to the internet, the recommended way to access the API is via the HELLA API server at https://api.hella.link. The server is operated by HELLA, located in the EU and only acts as a relay. All commands are forwarded directly to the individual ONYX.CENTERs and are not modified in transit.
+If your ONYX.CENTER is connected to the internet, the recommended way to access the API is via the HELLA API server at <https://api.hella.link>. The server is operated by HELLA, located in the EU and only acts as a relay. All commands are forwarded directly to the individual ONYX.CENTERs and are not modified in transit.
 
 HELLA provides the API service free of charge and without restrictions. We do not provide any uptime or performance guarantees.
 
@@ -110,24 +113,24 @@ To use the API, client applications need the _fingerprint_ of the ONYX.CENTER an
 
 ## Access Control using the HELLA API Server
 
-1.  Make sure your ONYX.CENTER is connected to the Internet and can access https://api.hella.link
-2.  Open the ONYX App and connect to your ONYX.CENTER
-3.  In the app, go to _Settings/Access Control_ and tap on the "+" button to create a _temporary access code_. Enter a name for the API client and tap on the button to generate the code.
+1. Make sure your ONYX.CENTER is connected to the Internet and can access <https://api.hella.link>
+2. Open the ONYX App and connect to your ONYX.CENTER
+3. In the app, go to _Settings/Access Control_ and tap on the "+" button to create a _temporary access code_. Enter a name for the API client and tap on the button to generate the code.
 
-    This temporary code is only valid for 15 minutes and can be exchanged for a permanent API access token by sending it to the API endpoint at https://api.hella.link/authorize
+    This temporary code is only valid for 15 minutes and can be exchanged for a permanent API access token by sending it to the API endpoint at <https://api.hella.link/authorize>
 
     The server responds with status `200 - OK` and returns the _fingerprint_ and _access token_ if the temporary code is valid. If it is not, the server responds with status `401 - Unauthorized`.
 
     **Note:** You must use the returned API token to make at least one API request to make it permanent. Otherwise the token will be deleted after 15 minutes.
 
-4.  Once you have the _fingerprint_ and API _access token_ you can use them to call the API endpoints of your ONYX.CENTER.
+4. Once you have the _fingerprint_ and API _access token_ you can use them to call the API endpoints of your ONYX.CENTER.
 
     **Important:** The access token needs to be sent as an HTTP header with every request you make to the API in the following format: `Authorization: Bearer {access token}`
 
 #### Example
 
 ```
-> curl -X POST  https://api.hella.link/authorize -H "Content-Type: application/json" -d '{"code" : "H99xV2yT"}'  | json_pp
+> curl -X POST  https://api.hella.link/authorize -H "Content-Type: application/json" -d '{"code" : "H99xV2yT"}'  | jq
 
 {
     "fingerprint" : "b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61",
@@ -137,8 +140,8 @@ To use the API, client applications need the _fingerprint_ of the ONYX.CENTER an
 
 ## Access Control using Local API Access
 
-1.  Open the ONYX App and connect to your ONYX.CENTER
-2.  In the app, go to _Settings/Access Control_ and tap on the "+" button to create a _temporary access code_. Enter a name for the API client and tap on the button to generate the code.
+1. Open the ONYX App and connect to your ONYX.CENTER
+2. In the app, go to _Settings/Access Control_ and tap on the "+" button to create a _temporary access code_. Enter a name for the API client and tap on the button to generate the code.
 
     This temporary code is only valid for 15 minutes and can be exchanged for a permanent API access token by sending it to the local API endpoint at https://LOCAL_ONYX_CENTER_HOSTNAME/api/v3/authorize
 
@@ -146,14 +149,14 @@ To use the API, client applications need the _fingerprint_ of the ONYX.CENTER an
 
     **Note:** You must use the returned API token to make at least one API request to make it permanent. Otherwise the token will be deleted after 15 minutes.
 
-3.  Once you have the _fingerprint_ and API _access token_ you can use them to call the local API endpoints of your ONYX.CENTER.
+3. Once you have the _fingerprint_ and API _access token_ you can use them to call the local API endpoints of your ONYX.CENTER.
 
     **Important:** The access token needs to be sent as an HTTP header with every request you make to the API in the following format: `Authorization: Bearer {access token}`
 
 #### Example
 
 ```
-> curl -k -X POST  https://ONYX-CENTER-C0-00-00-03.local./api/v3/authorize -H "Content-Type: application/json" -d '{"code" : "H99xV2yT"}' | json_pp
+> curl -k -X POST  https://ONYX-CENTER-C0-00-00-03.local./api/v3/authorize -H "Content-Type: application/json" -d '{"code" : "H99xV2yT"}' | jq
 
 {
     "fingerprint" : "b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61",
@@ -171,26 +174,28 @@ You can revoke the API access for an application just like you would revoke acce
 
 ### API Versions
 
-Whenever possible you should use the latest API version supported by your ONYX.CENTER. There are two API versions that are officially supported and documented: v1 and v3
+Whenever possible you should use the latest API version supported by your ONYX.CENTER. There are currently three API versions that are officially supported and documented: v1, v3 and v4
 
-API version 2 was never publicly documented because it has several implementation issues. If your API client application relies on undocumented features available in API v2 you should upgrade your client application to API v3 to ensure compatiblity going forward.
+API version 2 was never publicly documented because it has several implementation issues. If your API client application relies on undocumented features available in API v2 you should upgrade your client application to API v4 to ensure compatiblity going forward.
 
 API Version 3 introduces the following new features in addition to everything in v1:
 
 - [Local API Access](#local-access)
 - [Property Animations](#property-animations) to simplify client side property interpolation and to correctly track the variable drive speeds of newer devices like [ONYX.MOTOR](https://www.hella.info/de/produkte/onyx-r-silent-motor)
 - [Command Attributes](#command-attributes) to control the way in which commands are executed by devices
-- A [streaming API](#device-event-source) conforming to the [W3C Server-Sent Events specification](https://www.w3.org/TR/eventsource/)
+- A [streaming API](#event-stream) conforming to the [W3C Server-Sent Events specification](https://www.w3.org/TR/eventsource/)
 
 With the rollout of API v3, ONYX.CENTER now actively restricts API access to [publicly documented device properties and actions](#device-properties-and-actions). This applies to previous API versions as well.
+
+API version 4 includes all features from version 3 but now also enables access to recorded [time series data](#device-property-time-series) for device property values. This is especially useful if you want to visualize or create reports for weather data collected by your ONYX sensors.
 
 ### Base URL
 
 All API endpoints are located at the following base URL when using the [HELLA API server](#hella-api-server):
 
-https://api.hella.link/box/{box_fingerprint}/api/{api_version}/
+<https://api.hella.link/box/{box_fingerprint}/api/{api_version}/>
 
-Your ONYX center may support multiple API versions. You can query the supported versions with a GET request to the API endpoint https://api.hella.link/box/{box_fingerprint}/api/versions
+Your ONYX center may support multiple API versions. You can query the supported versions with a GET request to the API endpoint <https://api.hella.link/box/{box_fingerprint}/api/versions>
 
 Querying the supported API versions does not require an API token.
 
@@ -396,7 +401,7 @@ Currently only [ONYX.MOTOR](https://www.hella.info/produkte/onyx-r-silent-motor)
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1 and v3</td>
+        <th align="left">API Version</th><td>v1, v3 and v4</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -417,7 +422,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 #### Example
 
 ```
-> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/clock | json_pp
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/clock | jq
 {
    "zone" : "Europe/Vienna",
    "time" : 1527456892.94839,
@@ -429,7 +434,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1 and v3</td>
+        <th align="left">API Version</th><td>v1, v3 and v4</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -446,7 +451,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 #### Example
 
 ```
-> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/devices | json_pp
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/devices | jq
 {
    "7d4e1ced-5ff3-4616-a1a8-4bb6c3ec00bf" : {
       "name" : "Awesome Weather Station",
@@ -467,7 +472,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1 and v3</td>
+        <th align="left">API Version</th><td>v1, v3 and v4</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -484,7 +489,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 #### Example
 
 ```
-> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/groups | json_pp
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/groups | jq
 {
    "36e956d3-b61d-410e-b248-73fcfc9c6494" : {
       "name" : "Secret Lair",
@@ -504,11 +509,11 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 }
 ```
 
-#### Device Details
+### Device Details
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1 and v3</td>
+        <th align="left">API Version</th><td>v1, v3 and v4</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -525,7 +530,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 #### Example
 
 ```
-> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/devices/3988d54d-b8c2-4a65-b45a-47725ef4964a | json_pp
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/devices/3988d54d-b8c2-4a65-b45a-47725ef4964a | jq
 {
    "name" : "Bedroom Rollershutter 1",
    "type" : "rollershutter",
@@ -579,11 +584,11 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 }
 ```
 
-#### Group Details
+### Group Details
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1 and v3</td>
+        <th align="left">API Version</th><td>v1, v3 and v4</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -600,7 +605,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 #### Example
 
 ```
-> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/groups/36e956d3-b61d-410e-b248-73fcfc9c6494 | json_pp
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/groups/36e956d3-b61d-410e-b248-73fcfc9c6494 | jq
 {
    "name" : "Secret Lair",
    "devices" : [
@@ -615,7 +620,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1 and v3</td>
+        <th align="left">API Version</th><td>v1, v3 and v4</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>POST</td>
@@ -638,7 +643,7 @@ Read the section on [device commands and priorities](#device-commands-and-comman
 Send a command with two properties and use the default start and end times:
 
 ```
-> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/devices/034a3ac8-8d62-4b41-95b5-d0f4e84420fa/command -X POST -d  '{"properties" : {"target_position" : 20}}' | json_pp
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/devices/034a3ac8-8d62-4b41-95b5-d0f4e84420fa/command -X POST -d  '{"properties" : {"target_position" : 20}}' | jq
 {
    "valid_from" : 1527510327,
    "best_before" : 1527510337,
@@ -652,7 +657,7 @@ Send a command with two properties and use the default start and end times:
 Send a command with an action to execute with a defined start and end time:
 
 ```
-> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/devices/034a3ac8-8d62-4b41-95b5-d0f4e84420fa/command -X POST -d  '{"action" : "open"}, "valid_from" : 1527510702, "best_before": 1527510900}' | json_pp
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/devices/034a3ac8-8d62-4b41-95b5-d0f4e84420fa/command -X POST -d  '{"action" : "open"}, "valid_from" : 1527510702, "best_before": 1527510900}' | jq
 {
    "valid_from" : 1527510727,
    "best_before" : 1527510737,
@@ -663,7 +668,7 @@ Send a command with an action to execute with a defined start and end time:
 Move devices [_quietly_](#command-attributes) to a specified position:
 
 ```
-> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/devices/034a3ac8-8d62-4b41-95b5-d0f4e84420fa/command -X POST -d  '{"properties" : {"target_position" : 20}, "attributes": ["silent"]}' | json_pp
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/devices/034a3ac8-8d62-4b41-95b5-d0f4e84420fa/command -X POST -d  '{"properties" : {"target_position" : 20}, "attributes": ["silent"]}' | jq
 {
    "valid_from" : 1527510327,
    "best_before" : 1527510337,
@@ -681,7 +686,7 @@ Move devices [_quietly_](#command-attributes) to a specified position:
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1 and v3</td>
+        <th align="left">API Version</th><td>v1, v3 and v4</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>DELETE</td>
@@ -709,7 +714,7 @@ With this API endpoint, clients can cancel commands they have previously sent. N
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1 and v3</td>
+        <th align="left">API Version</th><td>v1, v3 and v4</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>POST</td>
@@ -734,7 +739,7 @@ The JSON response for this API endpoint includes the generated command and the H
 #### Example
 
 ```
-curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/groups/36e956d3-b61d-410e-b248-73fcfc9c6494/command -X POST -d  '{"action" : "close"}}' | json_pp
+curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/groups/36e956d3-b61d-410e-b248-73fcfc9c6494/command -X POST -d  '{"action" : "close"}}' | jq
 {
    "command" : {
       "best_before" : 1527541187,
@@ -762,7 +767,7 @@ curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6x
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1 and v3</td>
+        <th align="left">API Version</th><td>v1, v3 and v4</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>DELETE</td>
@@ -790,7 +795,7 @@ Read the section on the [Cancel Device Command endpoint](#cancel-device-command)
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v3 only</td>
+        <th align="left">API Version</th><td>v3 and v4</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -817,7 +822,7 @@ The `/events` endpoint allows API clients to observe the state of ONYX devices a
 #### Example
 
 ```
-> curl -k -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v3/events
+> curl -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v3/events
 event: snapshot
 data: {"devices":{"53ab8f34-e3ea-449f-851f-c1a821bbd9aa":{"name":"LED 04-ff-00-28","type":"dimmable_light","actions":["light_off","light_on","stop","wink"],"properties":{"actual_brightness":{"type":"numeric","minimum":0,"maximum":65535,"value":0,"readonly":true},"dim_duration":{"type":"numeric","minimum":20,"maximum":3600000,"value":5000,"readonly":false},"target_brightness":{"type":"numeric","minimum":0,"maximum":65535,"value":0,"readonly":false}}},"667e3604-001b-4416-841f-647857c4fdb1":{"name":"NODE 00-00-02-f2","type":"pergola_slat_roof","actions":["close","open","stop","wink"],"properties":{"actual_angle":{"type":"numeric","minimum":0,"maximum":360,"value":0,"readonly":true},"actual_position":{"type":"numeric","minimum":0,"maximum":100,"value":0,"readonly":true},"system_state":{"type":"enumeration","value":"ok","values":["collision","collision_not_calibrated","not_calibrated","ok"],"readonly":true},"target_angle":{"type":"numeric","minimum":0,"maximum":360,"value":0,"readonly":false},"target_position":{"type":"numeric","minimum":0,"maximum":100,"value":0,"readonly":false}}},"ae8a1d92-97c0-4ad0-9810-69190e14585e":{"name":"CONNECTOR 02-00-09-2b","type":"raffstore_90","actions":["close","open","stop","wink"],"properties":{"actual_angle":{"type":"numeric","minimum":0,"maximum":360,"value":89,"readonly":true},"actual_position":{"type":"numeric","minimum":0,"maximum":100,"value":11,"readonly":true},"system_state":{"type":"enumeration","value":"ok","values":["collision","collision_not_calibrated","not_calibrated","ok"],"readonly":true},"target_angle":{"type":"numeric","minimum":0,"maximum":360,"value":89,"readonly":false},"target_position":{"type":"numeric","minimum":0,"maximum":100,"value":11,"readonly":false}}}},"groups":{}}
 
@@ -835,6 +840,165 @@ data: {"devices":{"53ab8f34-e3ea-449f-851f-c1a821bbd9aa":{"properties":{"actual_
 
 event: patch
 data: {"groups":{"5705b5d9-84dd-4541-b535-bf4391ee7140":{"devices":["ae8a1d92-97c0-4ad0-9810-69190e14585e","667e3604-001b-4416-841f-647857c4fdb1","53ab8f34-e3ea-449f-851f-c1a821bbd9aa"],"name":"Everything"}}}
+```
+
+### Device Property Time Series
+
+<table>
+    <tr>
+        <th align="left">API Version</th><td>v4 only</td>
+    </tr>
+    <tr>
+        <th align="left">Method</th><td>GET</td>
+    </tr>
+    <tr>
+        <th align="left">Path</th><td>/blackbox/{device_id}/properties/{property_name}.{format}?{query}</td>
+    </tr>
+    <tr>
+        <th align="left">Description</th>
+        <td><p>Download recorded time series data for device properties.</a></p></td>
+    </tr>
+</table>
+
+#### Notes
+
+With this API endpoint, clients can download time series data that ONYX records whenever device properties change. The number of available datapoints depends on the number of total devices in your system and how frequently their properties changed over time. Currently ONYX.CENTER stores data locally for up to one year.
+
+Time series data can be downloaded in [CSV](https://en.wikipedia.org/wiki/Comma-separated_values), [CBOR](https://cbor.io) and [JSON](https://www.json.org) formats by using the matching filename extension in the request URL.
+
+Using the optional query parameters, you can limit the returned data stream:
+
+- `limit={n}`: Limits the maximum number of data points to `n` entries
+- `offset={n}`: Skips the first `n` number of data points
+- `order={asc|desc}`: Order the returned data points by timestamp either ascending or descending
+- `from={timestamp}`: Only return data points that lie after the given UNIX `timestamp`
+- `to={timestamp}`: Only return data points that lie before the given UNIX `timestamp`
+
+#### Example
+
+```
+# Download the latest 10 sun brightness values for a weather station in CSV format
+> curl -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v4/blackbox/2fbdfc79-f798-4a1b-bd00-1643bcbabf4a/properties/sun_brightness.csv\?limit\=10\&order\=desc
+2025-01-23T13:01:05.371904563Z,1339
+2025-01-23T13:00:19.447694291Z,1475
+2025-01-23T12:59:48.342021494Z,1620
+2025-01-23T12:58:54.496925548Z,1917
+2025-01-23T12:57:34.542690903Z,1780
+2025-01-23T12:56:40.209122959Z,1825
+2025-01-23T12:56:19.594088638Z,1764
+2025-01-23T12:54:59.634808044Z,1848
+2025-01-23T12:53:32.79664961Z,1475
+2025-01-23T12:50:25.718903102Z,1696
+
+# Download all available wind speed values for the 18th of January 2025 in CBOR format
+>  curl -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v4/blackbox/2fbdfc79-f798-4a1b-bd00-1643bcbabf4a/properties/wind_peak.cbor\?from\=1737158400\&to\=1737244800 -o wind_peak_2025_01_18.cbor
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  1160  100  1160    0     0   3836      0 --:--:-- --:--:-- --:--:--  3828
+
+# Download all target position changes for a device in JSON format
+> curl -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v4/blackbox/e1c1f5e8-bf80-443a-9edd-e6a40ca471b2/properties/target_position.json
+[
+    ["2025-01-23T17:24:24.603552174Z",100],
+    ["2025-01-23T11:39:40.178658431Z",84],
+    ["2025-01-23T10:02:50.300189514Z",84],
+    ["2025-01-23T10:02:43.195747098Z",0],
+    ["2025-01-23T06:49:33.390272474Z",100],
+    ["2025-01-23T06:49:15.827330448Z",88],
+    ["2025-01-23T06:49:10.511349074Z",0]
+]
+```
+
+### Device Online Time Series
+
+<table>
+    <tr>
+        <th align="left">API Version</th><td>v4 only</td>
+    </tr>
+    <tr>
+        <th align="left">Method</th><td>GET</td>
+    </tr>
+    <tr>
+        <th align="left">Path</th><td>/blackbox/{device_id}/online.{format}?{query}</td>
+    </tr>
+    <tr>
+        <th align="left">Description</th>
+        <td><p>Download recorded time series data for devices online/offline state.</a></p></td>
+    </tr>
+</table>
+
+#### Notes
+
+With this API endpoint, clients can download time series data that ONYX records when the device connection state changes between online and offline. This endpoint supports the same formats and query parameters as [Device Property Time Series](#device-property-time-series).
+
+#### Example
+
+```
+> curl -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v4/blackbox/8419d3b6-626d-4717-9d41-49daec7ac53e/online.json
+[
+    ["2025-01-23T18:24:37.752183809Z",true],
+    ["2025-01-23T18:24:37.106369859Z",false],
+    ["2025-01-23T18:02:30.236849327Z",true]
+]
+```
+
+### Time Series Statistics
+
+<table>
+    <tr>
+        <th align="left">API Version</th><td>v4 only</td>
+    </tr>
+    <tr>
+        <th align="left">Method</th><td>GET</td>
+    </tr>
+    <tr>
+        <th align="left">Path</th><td>/blackbox</td>
+    </tr>
+    <tr>
+        <th align="left">Description</th>
+        <td><p>Download statistics and configuration information about the time series store.</a></p></td>
+    </tr>
+</table>
+
+#### Notes
+
+Using this API endpoint, clients can inspect information about the time series store. The information returned is in JSON format and contains the following fields:
+
+```javascript
+{
+    // The total size of the time series database in bytes
+    "size": 4276224,
+
+    // The file size limit of the time series database on disk in bytes
+    "limit": 300000000,
+
+  "device_events": {
+
+    // Timestamp of the newest entries in the database - rounded to months for performance reasons
+    "newest": "2026-02-28T23:59:59.999999999Z",
+
+    // Timestamp of the oldest entries in the database - rounded to months for performance reasons
+    "oldest": "2025-12-01T00:00:00Z",
+
+    // The age cutoff of entries when the size limit is reached
+    "max_age": 31536000
+  }
+}
+```
+
+#### Example
+
+```
+> curl -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v4/blackbox/ | jq
+{
+  "size": 4276224,
+  "limit": 300000000,
+  "device_events": {
+    "newest": "2026-02-28T23:59:59.999999999Z",
+    "oldest": "2025-12-01T00:00:00Z",
+    "max_age": 31536000
+  }
+}
 ```
 
 # Device Properties and Actions
@@ -860,7 +1024,6 @@ ONYX currently supports five basic kinds of devices:
 - Temperature sensors
 
   ONYX.TAG temperature is able to measure the temperature and humidity.
-
 
 Depending on the device type and its settings, different properties and actions can be queried and controlled via the API. This section describes the supported properties and actions for each device type. API access to properties not in this document may be restricted in the future and should be avoided.
 
@@ -1075,7 +1238,6 @@ ONYX currently supports two types of lights via the same properties and actions:
 </tr>
 </table>
 
-
 ## Sun Sensors
 
 ### Properties
@@ -1132,5 +1294,8 @@ ONYX currently supports two types of lights via the same properties and actions:
 </tr>
 </table>
 
-
 Copyright 2024 HELLA Sonnen- und Wetterschutztechnik GmbH
+
+```
+
+```
