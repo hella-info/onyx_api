@@ -33,6 +33,8 @@
     - [Cancel Device Command](#cancel-device-command)
     - [Send Group Command](#send-group-command)
     - [Delete Group Command](#delete-group-command)
+    - [Relative Device Command](#relative-device-command)
+    - [Relative Group Command](#relative-group-command)
     - [Event Stream](#event-stream)
     - [Device Property Time Series](#device-property-time-series)
     - [Device Online Time Series](#device-online-time-series)
@@ -174,7 +176,7 @@ You can revoke the API access for an application just like you would revoke acce
 
 ### API Versions
 
-Whenever possible you should use the latest API version supported by your ONYX.CENTER. There are currently three API versions that are officially supported and documented: v1, v3 and v4
+Whenever possible you should use the latest API version supported by your ONYX.CENTER. There are currently four API versions that are officially supported and documented: v1, v3, v4 and v5
 
 API version 2 was never publicly documented because it has several implementation issues. If your API client application relies on undocumented features available in API v2 you should upgrade your client application to API v4 to ensure compatiblity going forward.
 
@@ -188,6 +190,8 @@ API Version 3 introduces the following new features in addition to everything in
 With the rollout of API v3, ONYX.CENTER now actively restricts API access to [publicly documented device properties and actions](#device-properties-and-actions). This applies to previous API versions as well.
 
 API version 4 includes all features from version 3 but now also enables access to recorded [time series data](#device-property-time-series) for device property values. This is especially useful if you want to visualize or create reports for weather data collected by your ONYX sensors.
+
+API version 5 includes all features from version 4 and introduces [relative device commands](#relative-device-command) and [time series aggregation](#aggregation). Relative commands allow you to adjust numeric property values by a delta rather than setting them to an absolute value. This is useful for incremental adjustments such as dimming a light up or down by a certain amount, without needing to know the current value first. Time series aggregation lets you request server-side summarization of property data in configurable time intervals using functions like average, minimum, maximum, count and sum.
 
 ### Base URL
 
@@ -401,7 +405,7 @@ Currently only [ONYX.MOTOR](https://www.hella.info/produkte/onyx-r-silent-motor)
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3 and v4</td>
+        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -434,7 +438,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3 and v4</td>
+        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -472,7 +476,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3 and v4</td>
+        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -513,7 +517,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3 and v4</td>
+        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -588,7 +592,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3 and v4</td>
+        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -620,7 +624,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3 and v4</td>
+        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>POST</td>
@@ -686,7 +690,7 @@ Move devices [_quietly_](#command-attributes) to a specified position:
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3 and v4</td>
+        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>DELETE</td>
@@ -714,7 +718,7 @@ With this API endpoint, clients can cancel commands they have previously sent. N
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3 and v4</td>
+        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>POST</td>
@@ -767,7 +771,7 @@ curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6x
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3 and v4</td>
+        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>DELETE</td>
@@ -791,11 +795,165 @@ Read the section on the [Cancel Device Command endpoint](#cancel-device-command)
 > curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/groups/36e956d3-b61d-410e-b248-73fcfc9c6494/command -X DELETE
 ```
 
+### Relative Device Command
+
+<table>
+    <tr>
+        <th align="left">API Version</th><td>v5</td>
+    </tr>
+    <tr>
+        <th align="left">Method</th><td>POST</td>
+    </tr>
+    <tr>
+        <th align="left">Path</th><td>/devices/{device_id}/command/relative</td>
+    </tr>
+    <tr>
+        <th align="left">Description</th>
+        <td><p>Send a relative control command to a single device to adjust numeric property values by a delta</p></td>
+    </tr>
+</table>
+
+#### Notes
+
+Unlike the [Device Command](#device-command) endpoint which sets properties to absolute values, this endpoint adjusts numeric properties _relative_ to their current value. This is useful when you want to increment or decrement a property without first querying the current device state.
+
+The request body must contain a `changes` object that maps property names to change descriptors. Each change descriptor has the following fields:
+
+<table>
+<tr>
+    <th>Field</th>
+    <th>Type</th>
+    <th>Required</th>
+    <th>Description</th>
+</tr>
+<tr>
+    <td>by</td>
+    <td>number</td>
+    <td>yes</td>
+    <td>The delta to apply to the current property value. Positive values increase the property, negative values decrease it. The result is clamped to the effective property range.</td>
+</tr>
+<tr>
+    <td>min</td>
+    <td>number</td>
+    <td>no</td>
+    <td>Optionally narrows the minimum of the effective range for this adjustment. The value is clamped to the property's native minimum.</td>
+</tr>
+<tr>
+    <td>max</td>
+    <td>number</td>
+    <td>no</td>
+    <td>Optionally narrows the maximum of the effective range for this adjustment. The value is clamped to the property's native maximum.</td>
+</tr>
+<tr>
+    <td>on_limit</td>
+    <td>object</td>
+    <td>no</td>
+    <td>A map of property names to change descriptors that should be applied instead when the target property is already at its effective limit in the direction of the change. This allows a single command to define fallback behavior, for example adjusting the angle when the position limit is reached. Only one level of nesting is allowed: entries in <code>on_limit</code> must not themselves contain <code>on_limit</code>.</td>
+</tr>
+</table>
+
+Only numeric, writeable properties can be used with relative commands.
+
+The optional top-level fields `valid_from`, `best_before` and `attributes` behave the same way as for the [Device Command](#device-command) endpoint.
+
+#### Example
+
+Increase the target position of a device by 10, falling back to increasing the target angle by 20 if the position is already at its limit:
+
+```
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v5/devices/034a3ac8-8d62-4b41-95b5-d0f4e84420fa/command/relative -X POST -d '{"changes": {"target_position": {"by": 10, "on_limit": {"target_angle": {"by": 20}}}}}' | jq
+{
+   "changes": {
+      "target_position": {
+         "by": 10,
+         "on_limit": {
+            "target_angle": {
+               "by": 20
+            }
+         }
+      }
+   },
+   "valid_from": 1527510327,
+   "best_before": 1527510337
+}
+```
+
+Dim a light down by 5000 units, clamping the range to a minimum of 1000:
+
+```
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v5/devices/53ab8f34-e3ea-449f-851f-c1a821bbd9aa/command/relative -X POST -d '{"changes": {"target_brightness": {"by": -5000, "min": 1000}}}' | jq
+{
+   "changes": {
+      "target_brightness": {
+         "by": -5000,
+         "min": 1000
+      }
+   },
+   "valid_from": 1527510327,
+   "best_before": 1527510337
+}
+```
+
+### Relative Group Command
+
+<table>
+    <tr>
+        <th align="left">API Version</th><td>v5</td>
+    </tr>
+    <tr>
+        <th align="left">Method</th><td>POST</td>
+    </tr>
+    <tr>
+        <th align="left">Path</th><td>/groups/{group_id}/command/relative</td>
+    </tr>
+    <tr>
+        <th align="left">Description</th>
+        <td><p>Send a relative control command to all devices in a group</p></td>
+    </tr>
+</table>
+
+#### Notes
+
+Read the section on the [Relative Device Command](#relative-device-command) endpoint for more details on the request payload.
+
+Sending a relative command to a group creates a separate command for each device in the group. The JSON response includes the generated command and the HTTP status codes that would have been returned, had the command been sent to each device individually.
+
+#### Example
+
+```
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v5/groups/36e956d3-b61d-410e-b248-73fcfc9c6494/command/relative -X POST -d '{"changes": {"target_position": {"by": -10}}}' | jq
+{
+   "command": {
+      "changes": {
+         "target_position": {
+            "by": -10
+         }
+      },
+      "valid_from": 1527541177,
+      "best_before": 1527541187
+   },
+   "results": {
+      "2b5e5e60-a9ff-4dab-a910-c3a6d475c37d": {
+         "status_code": 200,
+         "status_text": "OK"
+      },
+      "0bbbbbcf-3713-4372-a224-81cd6b3a82ea": {
+         "status_code": 200,
+         "status_text": "OK"
+      },
+      "40594f06-7f85-40e3-9877-e5c9f38a0dd2": {
+         "status_code": 400,
+         "status_text": "Bad Request"
+      }
+   }
+}
+```
+
 ### Event Stream
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v3 and v4</td>
+        <th align="left">API Version</th><td>v3, v4 and v5</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -846,7 +1004,7 @@ data: {"groups":{"5705b5d9-84dd-4541-b535-bf4391ee7140":{"devices":["ae8a1d92-97
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v4 only</td>
+        <th align="left">API Version</th><td>v4 and v5</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -873,6 +1031,24 @@ Using the optional query parameters, you can limit the returned data stream:
 - `order={asc|desc}`: Order the returned data points by timestamp either ascending or descending
 - `from={timestamp}`: Only return data points that lie after the given UNIX `timestamp`
 - `to={timestamp}`: Only return data points that lie before the given UNIX `timestamp`
+
+#### Aggregation
+
+> **Availability:** Aggregation query parameters require API **v5** or later.
+
+To reduce the amount of transferred data, you can request server-side aggregation by specifying both of the following query parameters together:
+
+- `interval={duration}`: The time bucket size. Supported units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days), `w` (weeks). Examples: `15m`, `1h`, `1d`, `1w`.
+- `aggregate={function}`: The aggregation function to apply per time bucket. Supported values:
+  - `avg` – Average value (returned as a floating point number rounded to two decimal places)
+  - `min` – Minimum value
+  - `max` – Maximum value
+  - `count` – Number of data points
+  - `sum` – Sum of all values
+
+When aggregation is active, each returned data point represents one time bucket. The timestamp corresponds to the start of the bucket and the value is the result of the aggregation function applied to all data points within that bucket. Empty buckets (time intervals with no data) are omitted.
+
+> **Note:** Aggregation only works with numeric property values. Non-numeric values (e.g. text) are automatically excluded from the aggregation.
 
 #### Example
 
@@ -907,13 +1083,36 @@ Using the optional query parameters, you can limit the returned data stream:
     ["2025-01-23T06:49:15.827330448Z",88],
     ["2025-01-23T06:49:10.511349074Z",0]
 ]
+
+# Download hourly average sun brightness for a specific day
+> curl -H "Authorization: Bearer ..." https://api.hella.link/box/.../api/v5/blackbox/2fbdfc79-f798-4a1b-bd00-1643bcbabf4a/properties/sun_brightness.json\?from\=1737158400\&to\=1737244800\&interval\=1h\&aggregate\=avg\&order\=asc
+[
+    ["2025-01-18T06:00:00Z",245.5],
+    ["2025-01-18T07:00:00Z",892.33],
+    ["2025-01-18T08:00:00Z",1450.75],
+    ["2025-01-18T09:00:00Z",1823.17],
+    ["2025-01-18T10:00:00Z",2105.0],
+    ["2025-01-18T11:00:00Z",1987.5]
+]
+
+# Download the daily maximum wind peak for the last 7 days
+> curl -H "Authorization: Bearer ..." https://api.hella.link/box/.../api/v5/blackbox/2fbdfc79-f798-4a1b-bd00-1643bcbabf4a/properties/wind_peak.json\?from\=1736553600\&to\=1737158400\&interval\=1d\&aggregate\=max\&order\=asc
+[
+    ["2025-01-11T00:00:00Z",42],
+    ["2025-01-12T00:00:00Z",38],
+    ["2025-01-13T00:00:00Z",67],
+    ["2025-01-14T00:00:00Z",51],
+    ["2025-01-15T00:00:00Z",29],
+    ["2025-01-16T00:00:00Z",44],
+    ["2025-01-17T00:00:00Z",35]
+]
 ```
 
 ### Device Online Time Series
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v4 only</td>
+        <th align="left">API Version</th><td>v4 and v5</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -946,7 +1145,7 @@ With this API endpoint, clients can download time series data that ONYX records 
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v4 only</td>
+        <th align="left">API Version</th><td>v4 and v5</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
