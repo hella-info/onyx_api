@@ -27,6 +27,8 @@
     - [Clock and Timezone Information](#clock-and-timezone-information)
     - [List all devices](#list-all-devices)
     - [List all groups](#list-all-groups)
+    - [List all automations](#list-all-automations)
+    - [Enable or disable an automation](#enable-or-disable-an-automation)
     - [Device Details](#device-details)
     - [Group Details](#group-details)
     - [Device Command](#device-command)
@@ -35,16 +37,22 @@
     - [Delete Group Command](#delete-group-command)
     - [Relative Device Command](#relative-device-command)
     - [Relative Group Command](#relative-group-command)
+    - [Update Status](#update-status)
+    - [Check for Updates](#check-for-updates)
+    - [Install an Update](#install-an-update)
+    - [Log Out](#log-out)
     - [Event Stream](#event-stream)
     - [Device Property Time Series](#device-property-time-series)
     - [Device Online Time Series](#device-online-time-series)
     - [Time Series Statistics](#time-series-statistics)
 - [Device Properties and Actions](#device-properties-and-actions-1)
   - [Motor Controllers](#motor-controllers)
+  - [Pergolas](#pergolas)
   - [Lights](#lights)
   - [Weather Stations](#weather-stations)
   - [Sun Sensors](#sun-sensors)
   - [Temperature Sensors](#temperature-sensors)
+  - [Rain Sensors and Alarm Inputs](#rain-sensors-and-alarm-inputs)
 
 # Introduction
 
@@ -170,13 +178,15 @@ To use the API, client applications need the _fingerprint_ of the ONYX.CENTER an
 
 You can revoke the API access for an application just like you would revoke access for any other device connected to your ONYX.CENTER. Just go to _Settings/Access Control_ in the ONYX App, select the API access you want to revoke and delete it.
 
+From API version 6 on, an application can also hand its own access back with the [Log Out](#log-out) endpoint. Well-behaved clients call it when they sign out or are uninstalled, so they do not leave a valid access behind.
+
 # API Description
 
 ## General Concepts
 
 ### API Versions
 
-Whenever possible you should use the latest API version supported by your ONYX.CENTER. There are currently four API versions that are officially supported and documented: v1, v3, v4 and v5
+Whenever possible you should use the latest API version supported by your ONYX.CENTER. There are currently five API versions that are officially supported and documented: v1, v3, v4, v5 and v6.
 
 API version 2 was never publicly documented because it has several implementation issues. If your API client application relies on undocumented features available in API v2 you should upgrade your client application to API v4 to ensure compatiblity going forward.
 
@@ -192,6 +202,8 @@ With the rollout of API v3, ONYX.CENTER now actively restricts API access to [pu
 API version 4 includes all features from version 3 but now also enables access to recorded [time series data](#device-property-time-series) for device property values. This is especially useful if you want to visualize or create reports for weather data collected by your ONYX sensors.
 
 API version 5 includes all features from version 4 and introduces [relative device commands](#relative-device-command) and [time series aggregation](#aggregation). Relative commands allow you to adjust numeric property values by a delta rather than setting them to an absolute value. This is useful for incremental adjustments such as dimming a light up or down by a certain amount, without needing to know the current value first. Time series aggregation lets you request server-side summarization of property data in configurable time intervals using functions like average, minimum, maximum, count and sum.
+
+API version 6 includes all features from version 5. It adds device tint colors, automation state and control, each device's currently active command and the [software update status](#update-status) of ONYX.CENTER to the REST API and [event stream](#event-stream), and it lets a client [give its own API access back](#log-out). The goal of this version is feature parity for everyday device control: an API client can now show the state of the system and control it like the ONYX App does, while system configuration intentionally stays exclusive to the app.
 
 ### Base URL
 
@@ -213,10 +225,10 @@ When using local access you instead need to use the [local mDNS hostname](#addre
 
 ```
 > curl https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/versions
-{"versions":["v1", "v2", "v3"]}
+{"versions":["v1", "v2", "v3", "v4", "v5", "v6"]}
 
 > curl https://ONYX-CENTER-C0-00-00-03.local./api/versions
-{"versions":["v1", "v2", "v3"]}
+{"versions":["v1", "v2", "v3", "v4", "v5", "v6"]}
 ```
 
 ### Device Properties and Actions
@@ -405,7 +417,7 @@ Currently only [ONYX.MOTOR](https://www.hella.info/produkte/onyx-r-silent-motor)
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
+        <th align="left">API Version</th><td>v1, v3, v4, v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -438,7 +450,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
+        <th align="left">API Version</th><td>v1, v3, v4, v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -448,7 +460,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
     </tr>
     <tr>
         <th align="left">Description</th>
-        <td><p>Returns a list of all devices along with their names and device types</p></td>
+        <td><p>Returns a list of all devices along with their names and device types. API v6 also includes the optional device tint color and active command.</p></td>
     </tr>
 </table>
 
@@ -472,11 +484,27 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 }
 ```
 
+Starting with API v6, devices with a configured tint include a `tint` field in `#RRGGBB` format:
+
+```json
+{
+   "7d4e1ced-5ff3-4616-a1a8-4bb6c3ec00bf" : {
+      "name" : "Awesome Weather Station",
+      "tint" : "#0E99DA",
+      "type" : "weather"
+   }
+}
+```
+
+The `tint` field is omitted when no tint is configured. API versions v1 through v5 do not expose it.
+
+API v6 also includes the optional `active_command` field described by [Device Details](#device-details).
+
 ### List all groups
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
+        <th align="left">API Version</th><td>v1, v3, v4, v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -513,11 +541,124 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 }
 ```
 
+### List all automations
+
+<table>
+    <tr>
+        <th align="left">API Version</th><td>v6</td>
+    </tr>
+    <tr>
+        <th align="left">Method</th><td>GET</td>
+    </tr>
+    <tr>
+        <th align="left">Path</th><td>/automations</td>
+    </tr>
+    <tr>
+        <th align="left">Description</th>
+        <td><p>Returns the safety and comfort automations configured on ONYX.CENTER.</p></td>
+    </tr>
+</table>
+
+#### Notes
+
+Each automation exposes only its identity and enabled state:
+
+- `id`: The identifier to use with the [enable and disable endpoints](#enable-or-disable-an-automation)
+- `name`: The display name assigned in the ONYX App
+- `emoji`: The emoji assigned in the ONYX App
+- `type`: A free-form type identifier assigned by the editor that created the automation, for example `wind`
+- `enabled`: Whether the automation is currently active
+
+`name`, `emoji` and `type` are omitted when they are not configured. The configuration of an automation is not exposed and cannot be changed through this API.
+
+Treat `id` as an opaque string. Most automations are identified by a UUID, but an automation that belongs to a single device — the wind protection of a weather sensor, for example — is identified by a URI which has to be percent-encoded before it is used in a path. Such an automation frequently has no `name` of its own; the ONYX App shows it with the name of the device it belongs to.
+
+Automations are listed in the same order as in the ONYX App: safety automations such as wind protection come first, followed by the comfort automations, each group in its configured order.
+
+#### Example
+
+```
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v6/automations | jq
+[
+   {
+      "id" : "26f6b03e-86b1-46d9-8cad-42e0648d1a9c",
+      "name" : "Wind protection",
+      "emoji" : "🌬",
+      "type" : "wind",
+      "enabled" : true
+   },
+   {
+      "id" : "http://o.hella.info/d/1ff1014/scenarios?type=info.hella.onyx.wind",
+      "type" : "info.hella.onyx.wind",
+      "enabled" : true
+   },
+   {
+      "id" : "e94d6e40-3c17-4472-a0bb-fdb9dd7e6ed4",
+      "name" : "Evening shade",
+      "emoji" : "🌆",
+      "type" : "sun",
+      "enabled" : false
+   }
+]
+```
+
+### Enable or disable an automation
+
+<table>
+    <tr>
+        <th align="left">API Version</th><td>v6</td>
+    </tr>
+    <tr>
+        <th align="left">Method</th><td>POST</td>
+    </tr>
+    <tr>
+        <th align="left">Paths</th><td>/automations/{automation_id}/enable<br/>/automations/{automation_id}/disable</td>
+    </tr>
+    <tr>
+        <th align="left">Description</th>
+        <td><p>Enables or disables an automation</p></td>
+    </tr>
+</table>
+
+#### Notes
+
+The change takes effect immediately: disabling an automation also cancels the commands it has issued, and enabling an automation allows it to take control of its devices right away. Keep in mind that disabled safety automations leave your shading products unprotected, for example from wind damage.
+
+`{automation_id}` is a single path segment and has to be percent-encoded, which matters for the automations that belong to a device: their identifier is a URI, and every `:`, `/`, `?` and `=` in it has to be escaped — `encodeURIComponent()` in JavaScript, `urllib.parse.quote(id, safe="")` in Python, `--data-urlencode` or a pre-encoded string with `curl`. An identifier that is sent unencoded spreads over several path segments and fails with status `404 - Not Found`.
+
+The request needs no body. A successful response contains the automation in the same format as [List all automations](#list-all-automations); unknown automation IDs fail with status `404 - Not Found`. These endpoints cannot create, edit or delete automations.
+
+Both endpoints are idempotent: enabling an already enabled automation, or disabling an already disabled one, succeeds with status `200 - OK` and returns the automation in its current state. You therefore do not have to read the current state before setting it.
+
+#### Example
+
+```
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v6/automations/26f6b03e-86b1-46d9-8cad-42e0648d1a9c/disable -X POST | jq
+{
+   "id" : "26f6b03e-86b1-46d9-8cad-42e0648d1a9c",
+   "name" : "Wind protection",
+   "emoji" : "🌬",
+   "type" : "wind",
+   "enabled" : false
+}
+```
+
+The wind protection of a weather sensor, whose identifier `http://o.hella.info/d/1ff1014/scenarios?type=info.hella.onyx.wind` is percent-encoded into a single path segment:
+
+```
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v6/automations/http%3A%2F%2Fo.hella.info%2Fd%2F1ff1014%2Fscenarios%3Ftype%3Dinfo.hella.onyx.wind/enable -X POST | jq
+{
+   "id" : "http://o.hella.info/d/1ff1014/scenarios?type=info.hella.onyx.wind",
+   "type" : "info.hella.onyx.wind",
+   "enabled" : true
+}
+```
+
 ### Device Details
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
+        <th align="left">API Version</th><td>v1, v3, v4, v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -532,6 +673,42 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 </table>
 
 #### Example
+
+In API v6, the response includes the same optional `tint` field described by [List all devices](#list-all-devices). It also includes `active_command` while the device is executing a command:
+
+```json
+{
+   "active_command" : {
+      "source" : {
+         "type" : "automation",
+         "id" : "26f6b03e-86b1-46d9-8cad-42e0648d1a9c",
+         "name" : "Wind protection",
+         "emoji" : "🌬"
+      },
+      "properties" : {
+         "target_position" : 0
+      },
+      "attributes" : [
+         "fast"
+      ],
+      "valid_from" : 1527510327,
+      "best_before" : 1527510900,
+      "active_indicators" : [
+         "wind"
+      ]
+   }
+}
+```
+
+Only the currently active command is exposed. Future, queued and suppressed commands stay private, and the command contains only the actions and properties that are visible to your API client. `active_indicators` is an optional list of free-form tags that describe why the command is active, for example `wind` or `frost`.
+
+The `source` object describes where the command came from, so that your application can display its origin without further lookups:
+
+- `client`: The command was sent by an app, another API client or a local service. `name` and `emoji` are the display name and emoji of that client as shown in _Settings/Access Control_ of the ONYX App.
+- `automation`: The command was issued by an automation. `id` refers to an entry in [List all automations](#list-all-automations). Automations without a name of their own inherit the name of the device they belong to, matching the ONYX App.
+- `device`: The command was issued by another ONYX device, such as a wall switch, a remote control or a weather station. `id` is the public API ID of that device.
+
+`id`, `name` and `emoji` are omitted when a source does not provide them. The whole `source` field is omitted when the command cannot be attributed, and `active_command` is omitted entirely while there is no active command. API versions v1 through v5 do not expose active commands.
 
 ```
 > curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v1/devices/3988d54d-b8c2-4a65-b45a-47725ef4964a | jq
@@ -592,7 +769,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
+        <th align="left">API Version</th><td>v1, v3, v4, v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -624,7 +801,7 @@ Your ONYX.CENTER might be located in a different timezone than your API client d
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
+        <th align="left">API Version</th><td>v1, v3, v4, v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>POST</td>
@@ -690,7 +867,7 @@ Move devices [_quietly_](#command-attributes) to a specified position:
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
+        <th align="left">API Version</th><td>v1, v3, v4, v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>DELETE</td>
@@ -718,7 +895,7 @@ With this API endpoint, clients can cancel commands they have previously sent. N
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
+        <th align="left">API Version</th><td>v1, v3, v4, v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>POST</td>
@@ -771,7 +948,7 @@ curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6x
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v1, v3, v4 and v5</td>
+        <th align="left">API Version</th><td>v1, v3, v4, v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>DELETE</td>
@@ -799,7 +976,7 @@ Read the section on the [Cancel Device Command endpoint](#cancel-device-command)
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v5</td>
+        <th align="left">API Version</th><td>v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>POST</td>
@@ -898,7 +1075,7 @@ Dim a light down by 5000 units, clamping the range to a minimum of 1000:
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v5</td>
+        <th align="left">API Version</th><td>v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>POST</td>
@@ -949,11 +1126,160 @@ Sending a relative command to a group creates a separate command for each device
 }
 ```
 
+### Update Status
+
+<table>
+    <tr>
+        <th align="left">API Version</th><td>v6</td>
+    </tr>
+    <tr>
+        <th align="left">Method</th><td>GET</td>
+    </tr>
+    <tr>
+        <th align="left">Path</th><td>/update</td>
+    </tr>
+    <tr>
+        <th align="left">Description</th>
+        <td><p>Returns the installed ONYX.CENTER software version and the available update, if any</p></td>
+    </tr>
+</table>
+
+#### Notes
+
+The response contains the following fields:
+
+- `current`: The currently installed software version
+- `available`: The update that can be installed. This field is omitted while ONYX.CENTER is up to date.
+- `available.progress`: The fraction of the update that has been transferred to ONYX.CENTER, between `0` and `1`. The field is omitted unless a transfer is running.
+
+The status only refreshes when ONYX.CENTER checks for updates, either during its periodic background checks or when you trigger [Check for Updates](#check-for-updates).
+
+#### Example
+
+```
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v6/update | jq
+{
+   "current" : "2.13.0",
+   "available" : {
+      "version" : "2.14.0"
+   }
+}
+```
+
+### Check for Updates
+
+<table>
+    <tr>
+        <th align="left">API Version</th><td>v6</td>
+    </tr>
+    <tr>
+        <th align="left">Method</th><td>POST</td>
+    </tr>
+    <tr>
+        <th align="left">Path</th><td>/update/check</td>
+    </tr>
+    <tr>
+        <th align="left">Description</th>
+        <td><p>Checks the HELLA update service for a new ONYX.CENTER software version</p></td>
+    </tr>
+</table>
+
+#### Notes
+
+The request needs no body and blocks until the check is complete. A successful response contains the refreshed [update status](#update-status). The check fails with status `500 - Internal Server Error` when ONYX.CENTER cannot reach the update service, for example without an internet connection.
+
+#### Example
+
+```
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v6/update/check -X POST | jq
+{
+   "current" : "2.13.0",
+   "available" : {
+      "version" : "2.14.0"
+   }
+}
+```
+
+### Install an Update
+
+<table>
+    <tr>
+        <th align="left">API Version</th><td>v6</td>
+    </tr>
+    <tr>
+        <th align="left">Method</th><td>POST</td>
+    </tr>
+    <tr>
+        <th align="left">Path</th><td>/update/install</td>
+    </tr>
+    <tr>
+        <th align="left">Description</th>
+        <td><p>Installs the available ONYX.CENTER software update</p></td>
+    </tr>
+</table>
+
+#### Notes
+
+The request needs no body and starts the installation of the update reported by [Update Status](#update-status). It fails with status `500 - Internal Server Error` when there is no update to install.
+
+Installing an update restarts ONYX.CENTER. Open API connections, including the [event stream](#event-stream), are closed during the restart and your client needs to reconnect once the update is complete.
+
+#### Example
+
+```
+> curl -s -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v6/update/install -X POST | jq
+{
+   "current" : "2.13.0",
+   "available" : {
+      "version" : "2.14.0"
+   }
+}
+```
+
+### Log Out
+
+<table>
+    <tr>
+        <th align="left">API Version</th><td>v6</td>
+    </tr>
+    <tr>
+        <th align="left">Method</th><td>POST</td>
+    </tr>
+    <tr>
+        <th align="left">Path</th><td>/logout</td>
+    </tr>
+    <tr>
+        <th align="left">Description</th>
+        <td><p>Revokes the API access the request was authorized with</p></td>
+    </tr>
+</table>
+
+#### Notes
+
+The request needs no body and answers with `204 - No Content` once the access has been revoked. From then on the access token is invalid: further requests answer with `401 - Unauthorized`, open [event streams](#event-stream) using it are closed, and the access no longer appears under _Settings/Access Control_ in the ONYX App.
+
+Use this endpoint when your application signs out or is uninstalled. Deleting your copy of the access token is not enough on its own — the access stays on ONYX.CENTER until it is revoked here, [removed in the app](#revoke-api-access), or, for a temporary access, until it expires.
+
+The endpoint revokes only the access used for the request. It cannot revoke any other access; use the ONYX App for that.
+
+If ONYX.CENTER cannot revoke the access it answers with `503 - Service Unavailable`. Treat that response like an unreachable ONYX.CENTER: your application can still sign out locally, but the access remains valid until it expires or somebody removes it in the app.
+
+#### Example
+
+```
+> curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v6/logout -X POST
+204
+
+# The token is dead afterwards
+> curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer 6EcYUqFHQulXobR7Cui1Vvplk2111ZTn0KcLKieStCfQ6xiDKOFO7ZyV4o3333gyyTODsQpCFi1NXAK9Wd4zpC1HdWnKKS1FTH0oDzqz1L6zec5Ebqjx1Dfx303WMmm" https://api.hella.link/box/b381b2fc691ebbbce2a681b22d493e4ddcccaef58738f0caca4e9f61/api/v6/devices
+401
+```
+
 ### Event Stream
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v3, v4 and v5</td>
+        <th align="left">API Version</th><td>v3, v4, v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -973,9 +1299,15 @@ The `/events` endpoint allows API clients to observe the state of ONYX devices a
 
 - `pulse`: This event is used as a heartbeat. It is send periodically and contains as data the current system time in unix timestamp format.
 
-- `snapshot`: The initial snapshot is immediately emitted when you open the connection to the `/events` endpoint and contains the current state of all devices as available through the [Device Details](#device-details) API endpoint.
+- `snapshot`: The initial snapshot is immediately emitted when you open the connection to the `/events` endpoint and contains the current state of all devices as available through the [Device Details](#device-details) API endpoint. In API v6 it also contains the `automations` array from [List all automations](#list-all-automations) and, when known, the `update` status from [Update Status](#update-status).
 
 - `patch`: After the initial snapshot, ONYX.CENTER emits `patch` events whenever the state of a device changes, new devices are added or existing devices are removed. Each `patch` is a [JSON Merge Patch](https://datatracker.ietf.org/doc/html/rfc7386) document that can be applied to the previous `snapshot` to update it to the current state of your ONYX system.
+
+In API v6, the initial snapshot includes each configured device `tint` and `active_command`. Changing or clearing either value emits a device patch, as does a change to the resolved `source` of an active command, for example after renaming the device that issued it. Clearing a tint or removing an active command is represented by `null`, which removes the corresponding field when the merge patch is applied.
+
+Automation changes replace the complete `automations` array in a patch, preserving its order. This includes enabling and disabling as well as adding, removing and reordering automations.
+
+The `update` status is patched while an update is being transferred to ONYX.CENTER and when a transfer completes. An update discovered by [Check for Updates](#check-for-updates) does not patch already open event streams; it is reflected in the snapshot of new connections.
 
 #### Example
 
@@ -1004,7 +1336,7 @@ data: {"groups":{"5705b5d9-84dd-4541-b535-bf4391ee7140":{"devices":["ae8a1d92-97
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v4 and v5</td>
+        <th align="left">API Version</th><td>v4, v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -1112,7 +1444,7 @@ When aggregation is active, each returned data point represents one time bucket.
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v4 and v5</td>
+        <th align="left">API Version</th><td>v4, v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -1145,7 +1477,7 @@ With this API endpoint, clients can download time series data that ONYX records 
 
 <table>
     <tr>
-        <th align="left">API Version</th><td>v4 and v5</td>
+        <th align="left">API Version</th><td>v4, v5 and v6</td>
     </tr>
     <tr>
         <th align="left">Method</th><td>GET</td>
@@ -1202,15 +1534,19 @@ Using this API endpoint, clients can inspect information about the time series s
 
 # Device Properties and Actions
 
-ONYX currently supports five basic kinds of devices:
+ONYX currently supports the following basic kinds of devices:
 
 - Motor controllers
 
   These are the ONYX.NODE, ONYX.CONNECTOR and ONYX.MOTOR which can control raffstores, awnings and rollershutters and other types of shading products.
 
+- Pergolas
+
+  ONYX.NODE, ONYX.CONNECTOR and the ONYX.PERGOLA control unit drive the slat roofs, awning roofs and sides of pergolas. They support all motor controller features, and the ONYX.PERGOLA control unit additionally measures temperature and humidity.
+
 - Lights
 
-  ONYX.NODE and ONYX.CONNECTOR can be configured to control normal light fixtures on one of their output relays. In addition we offer a specialized ONYX.LED controller that controls the LED lighting in some awnings and pergolas and supports dimming.
+  ONYX.NODE and ONYX.CONNECTOR can be configured to control normal light fixtures on one of their output relays. In addition we offer specialized ONYX.LED controllers that control the LED lighting in some awnings and pergolas and support dimming and, depending on the model, colors.
 
 - Weather stations
 
@@ -1223,6 +1559,10 @@ ONYX currently supports five basic kinds of devices:
 - Temperature sensors
 
   ONYX.TAG temperature is able to measure the temperature and humidity.
+
+- Rain sensors and alarm inputs
+
+  ONYX.NODE can forward the state of wired contacts such as rain sensors and fire, wind or generic alarms.
 
 Depending on the device type and its settings, different properties and actions can be queried and controlled via the API. This section describes the supported properties and actions for each device type. API access to properties not in this document may be restricted in the future and should be avoided.
 
@@ -1300,12 +1640,50 @@ Note that the exposed properties and actions as well as their value ranges may d
 </tr>
 </table>
 
+## Pergolas
+
+The pergola device types `pergola_slat_roof`, `pergola_awning_roof` and `pergola_side` support all [Motor Controller](#motor-controllers) properties and actions. Note that the textile side screens of a pergola may also be configured with the `screen` device type instead of `pergola_side`. The two are functionally equivalent.
+
+To tilt the slats of a slat roof step by step without knowing their current angle, use a [relative command](#relative-device-command) on `target_angle`.
+
+In addition, pergolas provide the following properties:
+
+### Properties
+
+<table>
+<tr>
+    <th>Name</th>
+    <th>Type</th>
+    <th>Values</th>
+    <th>Writeable</th>
+    <th>Animated</th>
+    <th>Description</th>
+</tr>
+<tr>
+    <td>temperature</td>
+    <td>numeric</td>
+    <td>-400 - 850 in °C * 10</td>
+    <td>no</td>
+    <td>no</td>
+    <td>The temperature measured by the ONYX.PERGOLA control unit. Divide the value by 10 to get °C. Pergolas driven by other controllers do not provide this property.</td>
+</tr>
+<tr>
+    <td>humidity</td>
+    <td>numeric</td>
+    <td>0 - 100 in %</td>
+    <td>no</td>
+    <td>no</td>
+    <td>The relative humidity measured by the ONYX.PERGOLA control unit. Pergolas driven by other controllers do not provide this property.</td>
+</tr>
+</table>
+
 ## Lights
 
-ONYX currently supports two types of lights via the same properties and actions:
+ONYX currently supports three types of lights via the same properties and actions:
 
 - `basic_light` devices can only be turned on and off and ignore the `dim_duration` property. The brightness can only be 0% or 100%
 - `dimmable_light` devices support variable brightness levels and can smoothly transition between them
+- `rgbw_light` devices additionally support the color properties listed below. Depending on `color_mode`, the light either shows the configured hue and saturation or a white tone with the configured color temperature.
 
 ### Properties
 
@@ -1341,6 +1719,62 @@ ONYX currently supports two types of lights via the same properties and actions:
     <td>yes</td>
     <td>no</td>
     <td>The duration the light takes to transition from 0 - 100% brightness. Set this property together with the target brightness to control the duration of the transition.</p></td>
+</tr>
+<tr>
+    <td>target_hue</td>
+    <td>numeric</td>
+    <td>0 - 359 degrees</td>
+    <td>yes</td>
+    <td>no</td>
+    <td>The hue the light should transition to. Only available on <code>rgbw_light</code> devices.</td>
+</tr>
+<tr>
+    <td>actual_hue</td>
+    <td>numeric</td>
+    <td>0 - 359 degrees</td>
+    <td>no</td>
+    <td>yes</td>
+    <td>The current hue of the light. Only available on <code>rgbw_light</code> devices.</td>
+</tr>
+<tr>
+    <td>target_saturation</td>
+    <td>numeric</td>
+    <td>0 - 100 in %</td>
+    <td>yes</td>
+    <td>no</td>
+    <td>The color saturation the light should transition to. Only available on <code>rgbw_light</code> devices.</td>
+</tr>
+<tr>
+    <td>actual_saturation</td>
+    <td>numeric</td>
+    <td>0 - 100 in %</td>
+    <td>no</td>
+    <td>yes</td>
+    <td>The current color saturation of the light. Only available on <code>rgbw_light</code> devices.</td>
+</tr>
+<tr>
+    <td>target_color_temperature</td>
+    <td>numeric</td>
+    <td>2700 - 10500 in Kelvin</td>
+    <td>yes</td>
+    <td>no</td>
+    <td>The white color temperature the light should transition to. Only available on <code>rgbw_light</code> devices.</td>
+</tr>
+<tr>
+    <td>actual_color_temperature</td>
+    <td>numeric</td>
+    <td>2700 - 10500 in Kelvin</td>
+    <td>no</td>
+    <td>yes</td>
+    <td>The current white color temperature of the light. Only available on <code>rgbw_light</code> devices.</td>
+</tr>
+<tr>
+    <td>color_mode</td>
+    <td>enumeration</td>
+    <td>hsv, temperature</td>
+    <td>no</td>
+    <td>no</td>
+    <td>Whether the light currently shows the configured hue and saturation (<code>hsv</code>) or a white tone with the configured color temperature (<code>temperature</code>). Only available on <code>rgbw_light</code> devices.</td>
 </tr>
 </table>
 
@@ -1385,6 +1819,12 @@ ONYX currently supports two types of lights via the same properties and actions:
     <td>numeric</td>
     <td>0 - 500000 in mm/s</td>
     <td><p>The maximum wind speed measured in the last 15 minutes in mm/s. Divide by 1000 to convert to m/s.</p></td>
+</tr>
+<tr>
+    <td>wind_speed</td>
+    <td>numeric</td>
+    <td>0 - 100000 in mm/s</td>
+    <td><p>The current wind speed in mm/s. Divide by 1000 to convert to m/s.</p></td>
 </tr>
 <tr>
     <td>sun_brightness</td>
@@ -1490,6 +1930,48 @@ ONYX currently supports two types of lights via the same properties and actions:
     <td>numeric</td>
     <td>0 - 100 in %</td>
     <td><p>The relative humidity of the air around the sensor.</p></td>
+</tr>
+</table>
+
+## Rain Sensors and Alarm Inputs
+
+Wired contacts such as rain sensors, fire alarms or generic alarm outputs of third-party systems can be connected to an ONYX.NODE input. Each configured contact appears as a separate device with the device type `input`. The state of these devices can only be read; how the system reacts to a triggered contact is configured on ONYX.CENTER itself.
+
+Inputs that are configured to forward button presses to other devices are not exposed through the API. Their presses appear as the command source of the devices they control instead.
+
+### Properties
+
+<table>
+<tr>
+    <th>Name</th>
+    <th>Type</th>
+    <th>Values</th>
+    <th>Description</th>
+</tr>
+<tr>
+    <td>input_type</td>
+    <td>enumeration</td>
+    <td>rain_sensor, wind_alarm, generic_alarm, fire_alarm</td>
+    <td><p>The role that is configured for the contact.</p></td>
+</tr>
+<tr>
+    <td>input_active</td>
+    <td>enumeration</td>
+    <td>true, false</td>
+    <td><p>Whether the contact is currently triggered. For a rain sensor, <code>true</code> means it is raining.</p></td>
+</tr>
+</table>
+
+### Actions
+
+<table>
+<tr>
+    <th>Name</th>
+    <th>Description</th>
+</tr>
+<tr>
+    <td>wink</td>
+    <td>This action causes the LED of the ONYX.NODE the contact is connected to to light up and can be used to identify devices.</td>
 </tr>
 </table>
 
