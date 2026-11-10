@@ -1370,7 +1370,7 @@ Using the optional query parameters, you can limit the returned data stream:
 
 To reduce the amount of transferred data, you can request server-side aggregation by specifying both of the following query parameters together:
 
-- `interval={duration}`: The time bucket size. Supported units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days), `w` (weeks). Examples: `15m`, `1h`, `1d`, `1w`.
+- `interval={duration}`: The time bucket size. Supported units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days), `w` (weeks), `M` (months of 30 days) and `y` (years of 365 days). Units can be combined. Examples: `15m`, `1h`, `1h30m`, `1d`, `1w`, `1M`.
 - `aggregate={function}`: The aggregation function to apply per time bucket. Supported values:
   - `avg` – Average value (returned as a floating point number rounded to two decimal places)
   - `min` – Minimum value
@@ -1379,6 +1379,8 @@ To reduce the amount of transferred data, you can request server-side aggregatio
   - `sum` – Sum of all values
 
 When aggregation is active, each returned data point represents one time bucket. The timestamp corresponds to the start of the bucket and the value is the result of the aggregation function applied to all data points within that bucket. Empty buckets (time intervals with no data) are omitted.
+
+Aggregation only takes integer values into account. Data points with any other kind of value, such as text, are ignored.
 
 > **Note:** Aggregation only works with numeric property values. Non-numeric values (e.g. text) are automatically excluded from the aggregation.
 
@@ -1460,7 +1462,7 @@ When aggregation is active, each returned data point represents one time bucket.
 
 #### Notes
 
-With this API endpoint, clients can download time series data that ONYX records when the device connection state changes between online and offline. This endpoint supports the same formats and query parameters as [Device Property Time Series](#device-property-time-series).
+With this API endpoint, clients can download time series data that ONYX records when the device connection state changes between online and offline. This endpoint supports the same formats and query parameters as [Device Property Time Series](#device-property-time-series), with the exception of [aggregation](#aggregation), which is not available for the online state.
 
 #### Example
 
